@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Project paths
 BASE_DIR = Path(__file__).parent.parent
@@ -11,11 +15,25 @@ VECTORSTORE_DIR = DATA_DIR / "vectorstore"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
 
-# LLM Configuration
-OLLAMA_MODEL = "llama3.2:1b"  # 1B model - faster responses, ~1GB
-OLLAMA_BASE_URL = "http://localhost:11434"
+# Groq API Configuration
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError(
+        "GROQ_API_KEY not found in environment variables. "
+        "Please create a .env file with your Groq API key."
+    )
 
-# Embedding Configuration
+# LLM Configuration - Groq Models
+# Available models (free tier):
+# - llama-3.3-70b-versatile (RECOMMENDED - best quality, latest)
+# - llama-3.1-8b-instant (faster, good quality)
+# - mixtral-8x7b-32768 (good balance, large context)
+# - gemma2-9b-it (Google's model, fast)
+
+GROQ_MODEL = "llama-3.3-70b-versatile"  # Latest and best quality for RAG
+GROQ_TEMPERATURE = 0.1  # Low temperature for factual responses
+
+# Embedding Configuration (runs locally - FREE)
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 # RAG Configuration
@@ -26,3 +44,9 @@ TOP_K_RESULTS = 4
 # API Configuration
 API_HOST = "0.0.0.0"
 API_PORT = 8000
+
+# Rate Limiting (Groq free tier)
+GROQ_RATE_LIMIT = {
+    "requests_per_minute": 30,
+    "tokens_per_minute": 6000  
+}

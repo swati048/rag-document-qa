@@ -32,7 +32,7 @@ class QueryResponse(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "RAG Document Q&A API is running"}
+    return {"message": "RAG Document Q&A API is running", "llm_provider": "Groq"}
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -42,21 +42,35 @@ async def upload_document(file: UploadFile = File(...)):
         if not file.filename.endswith(('.pdf', '.txt')):
             raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
         
+        print(f"[UPLOAD] Starting upload: {file.filename}")
+        
         # Save file
         content = await file.read()
+        file_size_mb = len(content) / (1024 * 1024)
+        print(f"[UPLOAD] File size: {file_size_mb:.2f} MB")
+        
         filepath = doc_manager.save_uploaded_file(content, file.filename)
+        print(f"[UPLOAD] File saved to: {filepath}")
         
         # Load and chunk document
+        print(f"[UPLOAD] Starting document chunking...")
         documents = doc_manager.load_document(filepath)
+        print(f"[UPLOAD] Created {len(documents)} chunks")
         
         # Index documents
+        print(f"[UPLOAD] Starting indexing...")
         rag_engine.index_documents(documents)
+        print(f"[UPLOAD] Indexing complete")
         
         return {
             "message": f"Successfully uploaded and indexed {file.filename}",
-            "chunks": len(documents)
+            "chunks": len(documents),
+            "file_size_mb": round(file_size_mb, 2)
         }
     except Exception as e:
+        print(f"[UPLOAD] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/documents")
@@ -87,19 +101,25 @@ def query_documents(request: QueryRequest):
 
 @app.get("/health")
 def health_check():
-    """Check if Ollama is running"""
-    try:
-        import requests
-        response = requests.get(f"{config.OLLAMA_BASE_URL}/api/tags", timeout=2)
-        ollama_status = "running" if response.status_code == 200 else "error"
-    except:
-        ollama_status = "not running"
+    """Check system health"""
+    # Check if API key is configured
+    api_key_status = "configured" if config.GROQ_API_KEY else "missing"
     
     return {
         "status": "healthy",
-        "ollama": ollama_status,
+        "llm_provider": "Groq",
+        "model": config.GROQ_MODEL,
+        "api_key_status": api_key_status,
         "documents_indexed": len(doc_manager.list_documents())
     }
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=config.API_HOST, port=config.API_PORT)
+    print(f"Starting RAG API with Groq ({config.GROQ_MODEL})")
+    print(f"Maximum upload size: 100MB (configurable)")
+    # Increased timeout for large file processing
+    uvicorn.run(
+        app, 
+        host=config.API_HOST, 
+        port=config.API_PORT,
+        timeout_keep_alive=300  # 5 minutes
+    )

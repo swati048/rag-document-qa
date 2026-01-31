@@ -1,7 +1,7 @@
 # Core FastAPI
-fastapi==0.109.0
-uvicorn==0.27.0
-python-multipart==0.0.6
+fastapi>=0.109.0
+uvicorn>=0.27.0
+python-multipart>=0.0.6
 
 # RAG & LLM - Modern LangChain Stack (1.0+)
 langchain>=1.2.0
@@ -10,22 +10,24 @@ langchain-community>=0.4.0
 langchain-core>=1.2.0
 langchain-text-splitters>=1.0.0
 
-# Modern Partner Integrations
-langchain-ollama>=1.0.0
+# Cloud LLM Integration - GROQ
+langchain-groq>=0.1.0
+
+# Embeddings (Local - FREE)
 langchain-huggingface>=1.0.0
 
 # Vector Store & Embeddings
-faiss-cpu==1.7.4
-sentence-transformers==2.3.1
+faiss-cpu>=1.12.0
+sentence-transformers>=2.3.1
 
 # Document Processing
-pypdf==4.0.1
-python-docx==1.1.0
+pypdf>=4.0.1
+python-docx>=1.1.0
 
 # Frontend
-streamlit==1.31.0
-requests==2.31.0
+streamlit>=1.31.0
+requests>=2.31.0
 
 # Utilities
 pydantic>=2.0.0
-python-dotenv==1.0.1
+python-dotenv>=1.0.1
