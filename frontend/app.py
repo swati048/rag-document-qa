@@ -43,12 +43,24 @@ st.markdown("""
     .chat-message strong {
         color: inherit;
     }
+    .filter-badge {
+        display: inline-block;
+        background-color: rgba(255, 152, 0, 0.2);
+        border: 1px solid rgba(255, 152, 0, 0.5);
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        margin-left: 0.5rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Initialize session state
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
+if 'deleting_file' not in st.session_state:
+    st.session_state.deleting_file = None
 
 # Sidebar - Document Management
 with st.sidebar:
@@ -91,17 +103,15 @@ with st.sidebar:
         st.caption(f"📦 File size: {file_size_mb:.2f} MB")
         
         if st.button("📤 Upload & Index", use_container_width=True):
-            # Estimate processing time based on file size
-            estimated_time = max(60, int(file_size_mb * 30))  # ~30 seconds per MB
+            estimated_time = max(60, int(file_size_mb * 30))
             
             with st.spinner(f"Processing document... (may take up to {estimated_time}s for large files)"):
                 try:
                     files = {"file": (uploaded_file.name, uploaded_file, uploaded_file.type)}
-                    # INCREASED TIMEOUT: 5 minutes for large files
                     response = requests.post(
                         f"{API_URL}/upload", 
                         files=files, 
-                        timeout=300  # 5 minutes
+                        timeout=300
                     )
                     
                     if response.status_code == 200:
@@ -121,41 +131,65 @@ with st.sidebar:
     
     # Documents list
     st.subheader("Current Documents")
+    
+    # Handle deletion if triggered
+    if st.session_state.deleting_file:
+        with st.spinner(f"Deleting {st.session_state.deleting_file}..."):
+            try:
+                delete_response = requests.delete(
+                    f"{API_URL}/documents/{st.session_state.deleting_file}",
+                    timeout=150
+                )
+                
+                st.session_state.deleting_file = None  # Clear the flag
+                
+                if delete_response.status_code == 200:
+                    st.rerun()  # Successful deletion, refresh page
+                else:
+                    st.error(f"Failed to delete: {delete_response.text}")
+                    
+            except requests.exceptions.Timeout:
+                st.session_state.deleting_file = None
+                st.error("Delete request timed out. File may still be deleted - refresh the page.")
+            except Exception as e:
+                st.session_state.deleting_file = None
+                st.error(f"Delete error: {str(e)}")
+    
+    # Display documents list
     try:
-        docs_response = requests.get(f"{API_URL}/documents", timeout=5)
+        docs_response = requests.get(f"{API_URL}/documents", timeout=60)
         documents = docs_response.json()["documents"]
         
         if documents:
             for doc in documents:
-                with st.container():
-                    col1, col2 = st.columns([3, 1])
-                    with col1:
-                        st.text(f"📄 {doc['filename']}")
-                        st.caption(f"{doc['size']} • {doc['uploaded']}")
-                    with col2:
-                        if st.button("🗑️", key=doc['filename'], help="Delete"):
-                            try:
-                                requests.delete(f"{API_URL}/documents/{doc['filename']}")
-                                st.success("Deleted!")
-                                st.rerun()
-                            except:
-                                st.error("Delete failed")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.text(f"📄 {doc['filename']}")
+                    st.caption(f"{doc['size']} • {doc['uploaded']}")
+                with col2:
+                    # Trigger deletion via session state
+                    if st.button("🗑️", key=f"delete_{doc['filename']}", help="Delete"):
+                        st.session_state.deleting_file = doc['filename']
+                        st.rerun()
         else:
             st.info("No documents uploaded yet")
-    except:
-        st.error("Cannot load documents")
+    except Exception as e:
+        st.error(f"Cannot load documents: {str(e)}")
     
     st.divider()
     
     # Clear all
     if st.button("🗑️ Clear All Documents", use_container_width=True, type="secondary"):
-        try:
-            requests.delete(f"{API_URL}/documents")
-            st.session_state.chat_history = []
-            st.success("All cleared!")
-            st.rerun()
-        except:
-            st.error("Clear failed")
+        with st.spinner("Clearing all documents..."):
+            try:
+                response = requests.delete(f"{API_URL}/documents", timeout=10)
+                if response.status_code == 200:
+                    st.session_state.chat_history = []
+                    st.rerun()
+                else:
+                    st.error("Failed to clear documents")
+            except Exception as e:
+                st.error(f"Clear failed: {str(e)}")
     
     st.divider()
     
@@ -167,16 +201,15 @@ with st.sidebar:
         - 🔍 FAISS (Vector Search)
         - 🧠 HuggingFace Embeddings (Local)
         
-        **Free Tier Limits:**
-        - 30 questions/minute
-        - Unlimited documents
+        **Settings:**
+        - Chunk size: 1500 chars
+        - Top K results: 9 chunks
+        - Model: Llama 3.3 70B
         
-        **Model:** Llama 3.3 70B
-        
-        **File Size Tips:**
-        - Small files (<5MB): ~30 seconds
-        - Medium files (5-20MB): 1-2 minutes
-        - Large files (>20MB): 2-5 minutes
+        **File Filtering:**
+        Mention a filename in your question!
+        - "What is in story.txt?"
+        - "Summarize report.pdf"
         """)
 
 # Main area - Q&A Interface
@@ -195,13 +228,19 @@ if st.session_state.chat_history:
             </div>
             """, unsafe_allow_html=True)
         
-        # Assistant message
+        # Assistant message with filtering badge
         with st.container():
             answer = chat.get('answer', 'No answer received')
+            filtered_by = chat.get('filtered_by')
+            chunks_retrieved = chat.get('chunks_retrieved', 0)
+
+            filter_badge = f'<div class="filter-badge">🎯 Filtered by: {filtered_by}</div>'
+            
             st.markdown(f"""
             <div class="chat-message assistant-message">
-                <strong>🤖 Assistant:</strong><br>
+                <strong>🤖 Assistant:</strong> <small>({chunks_retrieved} chunks)</small><br>
                 {answer}
+                {filter_badge}
             </div>
             """, unsafe_allow_html=True)
         
@@ -210,14 +249,22 @@ if st.session_state.chat_history:
         if sources and len(sources) > 0:
             with st.expander(f"🔎 View Sources ({len(sources)} chunks)", expanded=False):
                 for j, source in enumerate(sources, 1):
+                    filename = source.get('filename', source.get('source', 'Unknown'))
+                    file_type = source.get('file_type', 'unknown')
                     st.markdown(f"""
                     <div class="source-box">
-                        <strong>Source {j}:</strong> {source.get('source', 'Unknown')} (Chunk {source.get('chunk', 0)})<br>
+                        <strong>Source {j}:</strong> {filename} ({file_type.upper()}) - Chunk {source.get('chunk', 0)}<br>
                         <small>{source.get('content', 'No content')}</small>
                     </div>
                     """, unsafe_allow_html=True)
 else:
     st.info("👋 Welcome! Upload a document and start asking questions.")
+    st.markdown("""
+    **💡 Pro Tips:**
+    - Upload multiple documents
+    - Ask: *"What is in doc.txt?"* to search only that file
+    - Ask: *"Compare the two documents"* to search across all files
+    """)
 
 # Query input
 st.markdown("---")
@@ -226,7 +273,7 @@ with st.form(key="query_form", clear_on_submit=True):
     with col1:
         question = st.text_input(
             "Ask a question:",
-            placeholder="What is the main topic of the document?",
+            placeholder="What is the main topic? (or: What is in doc.txt?)",
             label_visibility="collapsed",
             key="question_input"
         )
@@ -239,7 +286,7 @@ if submit and question:
             response = requests.post(
                 f"{API_URL}/query",
                 json={"question": question},
-                timeout=60
+                timeout=180
             )
             
             if response.status_code == 200:
@@ -250,6 +297,8 @@ if submit and question:
                     "question": question,
                     "answer": result.get("answer", "No answer received"),
                     "sources": result.get("sources", []),
+                    "filtered_by": result.get("filtered_by"),
+                    "chunks_retrieved": result.get("chunks_retrieved", 0),
                     "timestamp": datetime.now().strftime("%H:%M:%S")
                 })
                 
@@ -268,6 +317,6 @@ if submit and question:
 st.divider()
 col1, col2 = st.columns(2)
 with col1:
-    st.caption("💡 Tip: Upload a document first, then ask questions about it!")
+    st.caption("💡 Tip: Mention a filename to filter search (e.g., 'What is in doc.pdf?')")
 with col2:
     st.caption("⚡ Powered by Groq's free tier (30 requests/min)")

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import uvicorn
 
 from document_manager import DocumentManager
@@ -29,6 +29,8 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: List[Dict[str, Any]]
+    filtered_by: Optional[str] = None
+    chunks_retrieved: Optional[int] = 0
 
 @app.get("/")
 def root():
@@ -80,11 +82,41 @@ def list_documents():
 
 @app.delete("/documents/{filename}")
 def delete_document(filename: str):
-    """Delete a specific document"""
-    success = doc_manager.delete_document(filename)
-    if success:
-        return {"message": f"Deleted {filename}"}
-    raise HTTPException(status_code=404, detail="Document not found")
+    """Delete a specific document from both filesystem and vector store"""
+    try:
+        print(f"[DELETE] Deleting document: {filename}")
+        
+        # Delete from filesystem
+        file_deleted = doc_manager.delete_document(filename)
+        
+        if not file_deleted:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Delete from vector store
+        vector_deleted = rag_engine.delete_document_from_vectorstore(filename)
+        
+        if vector_deleted:
+            print(f"[DELETE] Successfully deleted {filename} from both filesystem and vectorstore")
+            return {
+                "message": f"Deleted {filename}",
+                "file_deleted": True,
+                "vectorstore_updated": True
+            }
+        else:
+            print(f"[DELETE] File deleted but vectorstore cleanup failed")
+            return {
+                "message": f"Deleted {filename} (file only, vectorstore cleanup failed)",
+                "file_deleted": True,
+                "vectorstore_updated": False
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[DELETE] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/documents")
 def clear_all_documents():

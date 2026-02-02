@@ -23,7 +23,7 @@ if not GROQ_API_KEY:
         "Please create a .env file with your Groq API key."
     )
 
-# LLM Configuration - Groq Models
+# LLM Configuration - Groq Models (Updated January 2026)
 # Available models (free tier):
 # - llama-3.3-70b-versatile (RECOMMENDED - best quality, latest)
 # - llama-3.1-8b-instant (faster, good quality)
@@ -36,10 +36,10 @@ GROQ_TEMPERATURE = 0.1  # Low temperature for factual responses
 # Embedding Configuration (runs locally - FREE)
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
-# RAG Configuration
-CHUNK_SIZE = 1000
-CHUNK_OVERLAP = 200
-TOP_K_RESULTS = 4
+# RAG Configuration 
+CHUNK_SIZE = 1500        
+CHUNK_OVERLAP = 300      
+TOP_K_RESULTS = 9        
 
 # API Configuration
 API_HOST = "0.0.0.0"
@@ -48,5 +48,5 @@ API_PORT = 8000
 # Rate Limiting (Groq free tier)
 GROQ_RATE_LIMIT = {
     "requests_per_minute": 30,
-    "tokens_per_minute": 6000  
+    "tokens_per_minute": 6000
 }

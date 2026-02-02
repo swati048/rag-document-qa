@@ -25,9 +25,12 @@ class DocumentManager:
         return str(filepath)
     
     def load_document(self, filepath: str) -> List[Document]:
-        """Load and chunk document"""
-        file_ext = Path(filepath).suffix.lower()
+        """Load and chunk document with enhanced metadata"""
+        file_path = Path(filepath)
+        file_ext = file_path.suffix.lower()
+        filename = file_path.name
         
+        # Extract text based on file type
         if file_ext == ".pdf":
             text = self._extract_pdf_text(filepath)
         elif file_ext == ".txt":
@@ -39,19 +42,24 @@ class DocumentManager:
         # Split into chunks
         chunks = self.text_splitter.split_text(text)
         
-        # Create Document objects with metadata
+        # Create Document objects with ENHANCED metadata
         documents = [
             Document(
                 page_content=chunk,
                 metadata={
-                    "source": Path(filepath).name,
+                    "source": filename,           # Full filename with extension
+                    "filename": filename,          # Same as source for clarity
+                    "file_type": file_ext[1:],    # pdf or txt
                     "chunk": i,
-                    "total_chunks": len(chunks)
+                    "total_chunks": len(chunks),
+                    "chunk_size": len(chunk),
+                    "uploaded_at": datetime.now().isoformat()
                 }
             )
             for i, chunk in enumerate(chunks)
         ]
         
+        print(f"[DocumentManager] Created {len(documents)} chunks from {filename}")
         return documents
     
     def _extract_pdf_text(self, filepath: str) -> str:
@@ -76,10 +84,11 @@ class DocumentManager:
         return docs
     
     def delete_document(self, filename: str) -> bool:
-        """Delete a document"""
+        """Delete a document file (vector store cleanup handled separately)"""
         filepath = self.upload_dir / filename
         if filepath.exists():
             filepath.unlink()
+            print(f"[DocumentManager] Deleted file: {filename}")
             return True
         return False
     
@@ -94,3 +103,5 @@ class DocumentManager:
         if config.VECTORSTORE_DIR.exists():
             shutil.rmtree(config.VECTORSTORE_DIR)
             config.VECTORSTORE_DIR.mkdir(parents=True, exist_ok=True)
+        
+        print("[DocumentManager] Cleared all documents and vector store")
