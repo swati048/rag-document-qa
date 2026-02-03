@@ -163,7 +163,7 @@ class RAGEngine:
         # Check if query is generic
         for pattern, replacement in generic_patterns.items():
             if re.search(pattern, search_query.lower()):
-                final_query = f"{search_query} {replacement}".strip()
+                final_query = f"{search_query}, {replacement}".strip()
                 print(f"[RAG] Reformulated query: '{search_query}' -> '{final_query}'")
                 return final_query
                     
