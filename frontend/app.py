@@ -276,15 +276,12 @@ if st.session_state.chat_history:
             filtered_by = chat.get('filtered_by')
             chunks_retrieved = chat.get('chunks_retrieved', 0)
             
-            filter_badge = ""
-            if filtered_by:
-                filter_badge = f'<div class="filter-badge">🎯 Filtered by: {filtered_by}</div>'
+            filter_badge = f'\n<div class="filter-badge">🎯 Filtered by: {filtered_by}</div>' if filtered_by else ''
 
             st.markdown(f"""
             <div class="chat-message assistant-message">
                 <strong>🤖 Assistant:</strong> <small>({chunks_retrieved} chunks)</small><br>
-                {answer}
-                {filter_badge}
+                {answer}{filter_badge}
             </div>
             """, unsafe_allow_html=True)
 

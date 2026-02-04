@@ -48,6 +48,7 @@ venv.bak/
 # Data directories (uploaded documents and vector stores)
 data/uploads/*
 data/vectorstore/*
+data/chat_history.json
 # Keep the directories but ignore contents
 !data/uploads/.gitkeep
 !data/vectorstore/.gitkeep

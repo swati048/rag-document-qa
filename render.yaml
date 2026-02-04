@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: rag-backend
+    env: python
+    region: oregon  # Choose closest region
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false  # Will be set manually
+      - key: PYTHON_VERSION
+        value: 3.11.0
