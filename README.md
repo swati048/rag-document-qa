@@ -1,7 +1,5 @@
 # 📚 RAG Document Q&A System
 
-A **free, cloud-powered** AI document question-answering system using Retrieval Augmented Generation (RAG). Upload PDFs or text files and ask questions in natural language!
-
 <div align="center">
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
@@ -13,13 +11,13 @@ A **free, cloud-powered** AI document question-answering system using Retrieval 
 
 **An intelligent document Q&A system powered by RAG (Retrieval-Augmented Generation)**
 
-[Live Demo](#) • [Documentation](#quick-start) • [Report Bug](../../issues) • [Request Feature](../../issues)
+[Documentation](#-quick-start) • [Report Bug](../../issues) • [Request Feature](../../issues)
 
 </div>
 
 ## 📸 Demo
 
-![App Demo](screenshots/demo.gif)
+<img src="screenshots/demo.gif" width="800" alt="App Demo">
 
 ## 🎯 What is This?
 
@@ -296,19 +294,53 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 **Typical Usage**: 100-200 questions per day = completely free!
 
-## 🌐 Deployment
+## 🚢 Deployment
 
-### Streamlit Cloud (Frontend) + Render (Backend)
+### Recommended Stack
 
-**Pros**: 
-- ✅ Free hosting for both
-- ✅ Auto-restarts on code push
-- ✅ HTTPS by default
-- ✅ Easy to manage
+**Frontend:** [Streamlit Community Cloud](https://streamlit.io/cloud) (Free)
+- ✅ Free hosting for Streamlit apps
+- ✅ Auto-deploys from GitHub
+- ✅ Built-in secrets management
 
-**Cons**:
-- ⚠️ Render free tier sleeps after 15 min inactivity (30s cold start)
-- ⚠️ Streamlit Cloud has resource limits
+**Backend:** [Render](https://render.com) (Free tier available)
+- ✅ Persistent storage for vector DB
+- ✅ Environment variables
+- ✅ Auto-scaling
+- ⚠️ Free tier spins down after inactivity (cold start ~30s)
+
+**Alternative:** [Railway](https://railway.app) for unified deployment
+
+### Deployment Steps
+
+#### 1. Deploy Backend to Render
+
+1. Push code to GitHub
+2. Create new **Web Service** on Render
+3. Connect repository
+4. Configure:
+   - **Build Command:** `pip install -r backend/requirements.txt`
+   - **Start Command:** `cd backend && python main.py`
+   - **Environment Variables:**
+     - `GROQ_API_KEY` = your_api_key
+5. Note the deployed URL (e.g., `https://your-app.onrender.com`)
+
+#### 2. Deploy Frontend to Streamlit Cloud
+
+1. Update `frontend/app.py`:
+   ```python
+   API_URL = "https://your-app.onrender.com"  # Your Render URL
+   ```
+2. Push changes to GitHub
+3. Go to [share.streamlit.io](https://share.streamlit.io)
+4. Click **"New app"** → Connect repository
+5. Set **Main file path:** `frontend/app.py`
+6. Deploy!
+
+#### 3. Connect Services
+
+- Frontend will call backend API automatically
+- First query may be slow (Render cold start)
 
 ## 🧪 Testing the API
 
@@ -433,6 +465,6 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 **⭐ Star this repository if you found it helpful! ⭐**
 
-**Built with ❤️ using Groq's free tier**
+Made with ❤️ and ☕
 
 </div>
